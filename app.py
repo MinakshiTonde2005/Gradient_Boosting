@@ -1,314 +1,258 @@
 ```python
 import streamlit as st
 import pandas as pd
+import numpy as np
 import joblib
 import os
+import time
 
-# =========================================================
-# PAGE CONFIG
-# =========================================================
+# ============================================================
+# PAGE CONFIGURATION
+# ============================================================
+
 st.set_page_config(
     page_title="Gradient Boosting Predictor",
     page_icon="🤖",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# =========================================================
+# ============================================================
 # CUSTOM CSS
-# =========================================================
+# ============================================================
+
 st.markdown("""
 <style>
 
+/* Main App */
 .stApp {
-    background: linear-gradient(135deg, #eef2ff, #f8fafc);
+    background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 50%, #ede9fe 100%);
 }
 
+/* Header */
 .header {
-    background: linear-gradient(135deg, #4f46e5, #7c3aed);
-    padding: 30px;
-    border-radius: 20px;
+    padding: 35px 25px;
+    border-radius: 22px;
     text-align: center;
     color: white;
-    box-shadow: 0px 8px 25px rgba(0,0,0,0.15);
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    box-shadow: 0 10px 30px rgba(79, 70, 229, 0.30);
     margin-bottom: 30px;
 }
 
 .header h1 {
-    font-size: 40px;
-    margin-bottom: 5px;
+    font-size: 42px;
+    font-weight: 800;
+    margin: 0;
 }
 
 .header p {
     font-size: 18px;
+    margin-top: 8px;
 }
 
+/* Cards */
 .card {
-    background: white;
+    background: rgba(255,255,255,0.95);
     padding: 25px;
-    border-radius: 18px;
-    box-shadow: 0px 6px 20px rgba(0,0,0,0.10);
+    border-radius: 20px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.10);
+    border: 1px solid rgba(255,255,255,0.8);
     margin-bottom: 20px;
 }
 
-.result {
-    background: white;
-    padding: 30px;
-    border-radius: 18px;
-    text-align: center;
-    box-shadow: 0px 8px 25px rgba(0,0,0,0.12);
+/* Section titles */
+.section-title {
+    font-size: 25px;
+    font-weight: 750;
+    color: #312e81;
+    margin-bottom: 15px;
 }
 
-.result h2 {
-    color: #4f46e5;
-}
-
-.result-value {
-    font-size: 42px;
-    font-weight: bold;
-    color: #7c3aed;
-}
-
+/* Button */
 .stButton > button {
     width: 100%;
-    height: 52px;
-    border-radius: 12px;
+    height: 55px;
+    border-radius: 14px;
     border: none;
-    background: linear-gradient(135deg, #4f46e5, #7c3aed);
     color: white;
-    font-size: 18px;
-    font-weight: bold;
+    font-size: 19px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    box-shadow: 0 7px 18px rgba(79,70,229,0.35);
+    transition: all 0.3s ease;
 }
 
 .stButton > button:hover {
-    background: linear-gradient(135deg, #3730a3, #6d28d9);
-    color: white;
+    transform: translateY(-3px);
+    box-shadow: 0 12px 25px rgba(79,70,229,0.45);
 }
 
+/* Result card */
+.result-card {
+    padding: 35px;
+    margin-top: 25px;
+    text-align: center;
+    border-radius: 22px;
+    background: white;
+    box-shadow: 0 10px 35px rgba(0,0,0,0.15);
+    animation: resultAnimation 0.8s ease;
+}
+
+@keyframes resultAnimation {
+    0% {
+        opacity: 0;
+        transform: scale(0.85) translateY(20px);
+    }
+    60% {
+        transform: scale(1.04);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Prediction */
+.prediction {
+    font-size: 48px;
+    font-weight: 850;
+    color: #4f46e5;
+    margin: 10px;
+}
+
+/* Confidence */
+.confidence {
+    font-size: 18px;
+    font-weight: 600;
+    color: #475569;
+}
+
+/* Info box */
 .info-box {
     padding: 15px;
+    border-radius: 12px;
     background: #eef2ff;
     border-left: 5px solid #4f46e5;
-    border-radius: 10px;
+    margin-top: 15px;
+}
+
+/* Footer */
+.footer {
+    text-align: center;
+    color: #64748b;
+    padding: 20px;
+    font-size: 14px;
 }
 
 </style>
 """, unsafe_allow_html=True)
 
-# =========================================================
+# ============================================================
+# MODEL PATH
+# ============================================================
+
+MODEL_PATH = "GradientBoosting(1).pkl"
+
+# ============================================================
 # LOAD MODEL
-# =========================================================
-MODEL_FILE = "GradientBoosting.pkl"
-
-if not os.path.exists(MODEL_FILE):
-    st.error(
-        "❌ GradientBoosting.pkl not found. "
-        "Make sure the .pkl file is in the same folder as app.py."
-    )
-    st.stop()
-
+# ============================================================
 
 @st.cache_resource
 def load_model():
-    return joblib.load(MODEL_FILE)
+    return joblib.load(MODEL_PATH)
 
+
+if not os.path.exists(MODEL_PATH):
+    st.error(
+        "❌ Model file not found. Please keep "
+        "'GradientBoosting(1).pkl' in the same folder as app.py."
+    )
+    st.stop()
 
 try:
     model = load_model()
+
 except Exception as e:
-    st.error("❌ Error while loading the model.")
+    st.error("❌ Unable to load the Gradient Boosting model.")
     st.code(str(e))
     st.stop()
 
-# =========================================================
+# ============================================================
 # HEADER
-# =========================================================
+# ============================================================
+
 st.markdown("""
 <div class="header">
+
     <h1>🤖 Gradient Boosting Predictor</h1>
-    <p>Machine Learning Prediction Dashboard</p>
+
+    <p>
+        Intelligent Machine Learning Classification Dashboard
+    </p>
+
 </div>
 """, unsafe_allow_html=True)
 
-# =========================================================
+# ============================================================
 # SIDEBAR
-# =========================================================
+# ============================================================
+
 with st.sidebar:
 
-    st.title("⚙️ Model Details")
+    st.markdown("## ⚙️ Model Information")
 
     st.markdown("""
     **Algorithm**
 
     Gradient Boosting Classifier
 
-    **Features**
+    **Input Features**
 
     • Age  
     • Gender  
     • Review  
     • Education
 
-    **Model Type**
+    **Output**
 
-    Classification
+    • No  
+    • Yes
     """)
 
     st.markdown("---")
 
-    st.info(
-        "Enter the required information and click "
-        "Predict Result."
-    )
+    st.markdown("""
+    <div class="info-box">
 
-# =========================================================
+    💡 <b>Tip</b><br>
+    Select the categorical values and enter
+    the age before clicking Predict.
+
+    </div>
+    """, unsafe_allow_html=True)
+
+# ============================================================
 # INPUT SECTION
-# =========================================================
-st.markdown("## 📝 Enter Details")
+# ============================================================
+
+st.markdown(
+    '<div class="section-title">📝 Enter Prediction Details</div>',
+    unsafe_allow_html=True
+)
 
 col1, col2 = st.columns(2)
 
-# =========================================================
-# COLUMN 1
-# =========================================================
+# ============================================================
+# LEFT CARD
+# ============================================================
+
 with col1:
 
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
+    st.markdown("### 👤 Personal Information")
+
     age = st.number_input(
-        "👤 Age",
-        min_value=1,
-        max_value=100,
-        value=25,
-        step=1
-    )
-
-    gender = st.selectbox(
-        "⚧ Gender",
-        options=[0, 1],
-        format_func=lambda x:
-            "Category 0" if x == 0 else "Category 1"
-    )
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# =========================================================
-# COLUMN 2
-# =========================================================
-with col2:
-
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-
-    review = st.selectbox(
-        "⭐ Review",
-        options=[0, 1, 2, 3],
-        format_func=lambda x: f"Category {x}"
-    )
-
-    education = st.selectbox(
-        "🎓 Education",
-        options=[0, 1, 2, 3],
-        format_func=lambda x: f"Category {x}"
-    )
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# =========================================================
-# PREDICTION
-# =========================================================
-st.markdown("---")
-
-if st.button("🔮 PREDICT RESULT"):
-
-    try:
-
-        # IMPORTANT:
-        # Keep the feature names and order exactly
-        # as required by the trained model.
-
-        input_data = pd.DataFrame({
-            "age": [age],
-            "gender": [gender],
-            "review": [review],
-            "education": [education]
-        })
-
-        # Prediction
-        prediction = model.predict(input_data)[0]
-
-        # =====================================================
-        # RESULT
-        # =====================================================
-        st.markdown(
-            '<div class="result">',
-            unsafe_allow_html=True
-        )
-
-        st.markdown(
-            "<h2>🎯 Prediction Result</h2>",
-            unsafe_allow_html=True
-        )
-
-        st.markdown(
-            f'<div class="result-value">{prediction}</div>',
-            unsafe_allow_html=True
-        )
-
-        # Probability
-        if hasattr(model, "predict_proba"):
-
-            probability = model.predict_proba(
-                input_data
-            )[0]
-
-            confidence = max(probability) * 100
-
-            st.write(
-                f"**Confidence: {confidence:.2f}%**"
-            )
-
-        st.markdown(
-            '</div>',
-            unsafe_allow_html=True
-        )
-
-        # =====================================================
-        # INPUT SUMMARY
-        # =====================================================
-        st.markdown("## 📊 Input Summary")
-
-        result_df = pd.DataFrame({
-            "Feature": [
-                "Age",
-                "Gender",
-                "Review",
-                "Education"
-            ],
-            "Value": [
-                age,
-                f"Category {gender}",
-                f"Category {review}",
-                f"Category {education}"
-            ]
-        })
-
-        st.dataframe(
-            result_df,
-            use_container_width=True,
-            hide_index=True
-        )
-
-    except Exception as e:
-
-        st.error("❌ Prediction Error")
-        st.code(str(e))
-
-# =========================================================
-# FOOTER
-# =========================================================
-st.markdown("---")
-
-st.markdown(
-    "<center>🚀 Gradient Boosting ML App | Built with Streamlit</center>",
-    unsafe_allow_html=True
-)
+        "Age",
 ```
